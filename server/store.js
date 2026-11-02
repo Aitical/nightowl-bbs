@@ -8,8 +8,12 @@ import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.DB_PATH || join(__dirname, '..', 'data', 'db.json');
-const TMP_PATH = DB_PATH + '.tmp';
+const DEFAULT_DB_PATH = join(__dirname, '..', 'data', 'db.json');
+
+// Read DB_PATH lazily so tests can override process.env.DB_PATH after module load.
+function getDbPath() {
+  return process.env.DB_PATH || DEFAULT_DB_PATH;
+}
 
 const SEED = {
   callers: {},
@@ -22,6 +26,7 @@ const SEED = {
 };
 
 function load() {
+  const DB_PATH = getDbPath();
   if (!existsSync(DB_PATH)) return structuredClone(SEED);
   try {
     return JSON.parse(readFileSync(DB_PATH, 'utf8'));
@@ -31,6 +36,8 @@ function load() {
 }
 
 function save(db) {
+  const DB_PATH = getDbPath();
+  const TMP_PATH = DB_PATH + '.tmp';
   writeFileSync(TMP_PATH, JSON.stringify(db, null, 2));
   renameSync(TMP_PATH, DB_PATH);
 }

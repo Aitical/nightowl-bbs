@@ -1,5 +1,13 @@
 /**
  * store.test.js — property-based + unit tests for the message store
+ *
+ * Isolation strategy:
+ *  - DB_PATH is set via env before the store module is first imported.
+ *  - beforeEach removes and recreates the data-test directory so each leaf
+ *    test starts with a completely empty database.
+ *  - The outer describe runs with concurrency:1 so beforeEach/afterEach
+ *    cannot interleave across parallel tests on the same file.
+ *  - A module-level rm also clears any leftover data-test from a prior run.
  */
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,36 +19,33 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const testDataDir = join(__dirname, '..', 'data-test');
 
-// Clean up any leftover test data from previous runs before tests start
+// ── Module-level cleanup: remove any leftover dir from a prior run ────────────
 if (existsSync(testDataDir)) {
   rmSync(testDataDir, { recursive: true, force: true });
 }
+mkdirSync(testDataDir, { recursive: true });
 
-// Patch DB_PATH for tests by setting env before importing store.
-// DB_PATH is evaluated at module load time in store.js, so we must set
-// process.env.DB_PATH before the import statement is executed.
+// ── DB_PATH must be set BEFORE the store module is imported ──────────────────
 process.env.DB_PATH = join(testDataDir, 'db.json');
 
-// Import store functions (must come after env setup)
 import {
   loginCaller, getOnlineCallers, getBases,
   getThreads, getThread, createThread, createReply, holdPost
 } from '../server/store.js';
 
-describe('Store', () => {
-  beforeEach(() => {
-    // Ensure fresh directory and no leftover db file
-    if (existsSync(testDataDir)) {
-      rmSync(testDataDir, { recursive: true, force: true });
-    }
-    mkdirSync(testDataDir, { recursive: true });
-  });
+// Helper: completely reset the database between tests
+function resetDb() {
+  if (existsSync(testDataDir)) {
+    rmSync(testDataDir, { recursive: true, force: true });
+  }
+  mkdirSync(testDataDir, { recursive: true });
+}
 
-  afterEach(() => {
-    if (existsSync(testDataDir)) {
-      rmSync(testDataDir, { recursive: true, force: true });
-    }
-  });
+// concurrency:1 ensures no two leaf tests run in parallel within this file,
+// so beforeEach/afterEach never race on the shared db file.
+describe('Store', { concurrency: 1 }, () => {
+  beforeEach(() => resetDb());
+  afterEach(() => resetDb());
 
   describe('loginCaller', () => {
     test('creates new caller on first login', () => {
@@ -187,7 +192,6 @@ describe('Store', () => {
         fc.string({ minLength: 1, maxLength: 100 }),
         fc.string({ minLength: 1, maxLength: 100 }),
         (subject, author, body) => {
-          // Sanitize author to valid handle
           const safeAuthor = 'User' + Math.abs(author.charCodeAt(0) || 65) % 1000;
           const t = createThread('general', subject, safeAuthor, body);
           assert.ok(t.subject.length <= 120);
