@@ -4,6 +4,9 @@ A dial-up-era Bulletin Board System resurrected as a modern web community board.
 80×25 ANSI terminal in the browser, keyboard-first menus, and an LLM SysOp who
 greets callers and moderates posts like it's 1994.
 
+**Live demo:** https://aitical.github.io/nightowl-bbs/ (static mode, no server needed — data lives in your browser)  
+Built for **Kiroween 2026 · Resurrection**, spec-first with Kiro.
+
 ```
 ╔══════════════════════════════════════════════════════════════╗
 ║  CONNECT 14400 ~~~~||||||||||||||||||||||||||||||||||||~~~~   ║
@@ -111,14 +114,9 @@ data/
 
 ## Screenshots
 
-> _Add screenshots here once the board is running._
->
-> Suggested captures:
-> - Connect handshake animation
-> - Main menu (amber phosphor)
-> - Thread list in the Halloween base
-> - SysOp chat exchange
-> - NO CARRIER goodbye screen
+| Main menu | Halloween thread | Who's online |
+|---|---|---|
+| ![menu](docs/menu.png) | ![thread](docs/thread.png) | ![online](docs/online.png) |
 
 ## How This Project Was Built with Kiro
 
