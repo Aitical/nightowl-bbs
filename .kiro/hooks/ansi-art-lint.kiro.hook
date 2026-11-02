@@ -1,0 +1,1 @@
+{"enabled":true,"name":"ANSI art width check","description":"Keep .ans screens within 80 columns","version":"1","when":{"type":"fileEdited","patterns":["public/screens/*.ans"]},"then":{"type":"askAgent","prompt":"Check the edited .ans file: every visible line must be ≤ 80 columns after stripping ANSI codes. Trim or reflow lines that exceed it."}}

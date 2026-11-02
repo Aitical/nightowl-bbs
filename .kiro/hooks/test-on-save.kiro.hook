@@ -1,0 +1,1 @@
+{"enabled":true,"name":"Run tests on save","description":"Run node --test when server or test files change","version":"1","when":{"type":"fileEdited","patterns":["server/**/*.js","test/**/*.js"]},"then":{"type":"askAgent","prompt":"Run `npm test`. If anything fails, fix the code (not the test) unless the test contradicts the spec in .kiro/specs/bbs-core/requirements.md."}}
