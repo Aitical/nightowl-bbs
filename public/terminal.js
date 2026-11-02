@@ -224,6 +224,44 @@ function center(text, width = 80) {
   return ' '.repeat(pad) + text;
 }
 
+/** Word-wrap text to fit within a column width, preserving ANSI codes */
+function wordWrap(text, width = 76) {
+  const lines = text.split('\n');
+  const wrapped = [];
+  
+  for (const l of lines) {
+    // Strip ANSI codes to measure visible width
+    const visible = l.replace(/\x1b\[[^m]*m/g, '');
+    
+    if (visible.length <= width) {
+      wrapped.push(l);
+      continue;
+    }
+    
+    // Need to wrap: find word boundaries and preserve ANSI codes
+    let current = '';
+    let currentVisible = '';
+    const words = l.split(' ');
+    
+    for (const word of words) {
+      const wordVisible = word.replace(/\x1b\[[^m]*m/g, '');
+      const tryLine = currentVisible ? currentVisible + ' ' + wordVisible : wordVisible;
+      
+      if (tryLine.length <= width) {
+        current = currentVisible ? current + ' ' + word : word;
+        currentVisible = tryLine;
+      } else {
+        if (current) wrapped.push(current);
+        current = word;
+        currentVisible = wordVisible;
+      }
+    }
+    if (current) wrapped.push(current);
+  }
+  
+  return wrapped.join('\n');
+}
+
 /** ASCII-art logo rendered via ANSI colours */
 function logo() {
   return [
@@ -573,7 +611,9 @@ function renderSysop() {
   show.forEach(({ who, text }) => {
     const color = who === 'sysop' ? C.bGreen : C.bCyan;
     const name  = who === 'sysop' ? 'SysOp' : escHtml(handle);
-    text.split('\n').forEach(l => {
+    // Word-wrap long replies to fit in 76 columns
+    const wrapped = wordWrap(text, 76);
+    wrapped.split('\n').forEach(l => {
       html += line(`${color}[${name}]${C.reset} ${escHtml(l)}`);
     });
   });

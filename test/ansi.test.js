@@ -131,4 +131,27 @@ describe('ansiToHtml', () => {
     assert.ok(html.includes('<span'));
     assert.ok(html.includes('Hello'));
   });
+
+  test('property: escaping exactly once (no double-escaping)', () => {
+    fc.assert(fc.property(
+      fc.string(),
+      (s) => {
+        // First escape
+        const escaped1 = escapeHtml(s);
+        // Simulate double-escaping (what we want to prevent)
+        const escaped2 = escapeHtml(escaped1);
+        
+        // For strings with special chars, double-escaping should produce different result
+        if (s.includes('&') || s.includes('<') || s.includes('>') || s.includes('"') || s.includes("'")) {
+          assert.notEqual(escaped1, escaped2, 
+            `Double-escaping changed the output for input: ${JSON.stringify(s)}`);
+        }
+        
+        // The display output should match first escape, not second
+        const display = ansiToHtml(s);
+        assert.equal(display, escaped1,
+          `ansiToHtml should produce same output as escapeHtml for: ${JSON.stringify(s)}`);
+      }
+    ));
+  });
 });

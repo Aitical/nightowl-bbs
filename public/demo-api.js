@@ -76,7 +76,7 @@ const SEED_THREADS = [
   },
 ];
 
-const GHOST_CALLERS = ['WitchHazel', 'GhostBuster9', 'CarvingKing', 'NightOwlSysOp', 'RetroRonin'];
+const GHOST_CALLERS = ['GhostBuster9', 'WitchHazel', 'CinemaSpectre', 'OldSysOp'];
 
 const SYSOP_REPLIES = [
   'Howdy, Caller! Glad you connected. Node 1 is all yours tonight — spooky season is peak BBS season.',
