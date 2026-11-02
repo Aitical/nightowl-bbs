@@ -95,15 +95,7 @@ const C = {
   bCyan:    '\x1b[96m', bWhite:  '\x1b[97m',
 };
 
-// ── HTML escaping ─────────────────────────────────────────────────────────────
-function escHtml(t) {
-  return t
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+
 
 // ── ANSI SGR → HTML ───────────────────────────────────────────────────────────
 // Handles: reset(0), bold(1), blink(5), fg 30-37/90-97, bg 40-47/100-107.
@@ -205,6 +197,16 @@ async function loadAns(path) {
 function render(html) {
   screen.innerHTML = html + '<span id="cursor"></span>';
   terminal.scrollTop = terminal.scrollHeight;
+}
+
+/** HTML escape function — only for values that will NOT be passed to ansiToHtml() */
+function escapeForHtml(t) {
+  return t
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /** Convert one line of ANSI-coded text to an HTML fragment ending with \n */
@@ -318,25 +320,30 @@ async function detectBackend() {
 
 // ── SSE — real-time updates ───────────────────────────────────────────────────
 // In demo mode use the localStorage-backed shim; otherwise connect to the server.
-const evtSource = (window.__demoMode && window.__makeDemoEventSource)
-  ? window.__makeDemoEventSource()
-  : new EventSource('api/events');
+let evtSource = null;
 
-evtSource.addEventListener('online', e => {
-  onlineCallers = JSON.parse(e.data);
-  if (state === 'ONLINE') renderOnline();
-});
+function connectEvents() {
+  evtSource = (window.__demoMode && window.__makeDemoEventSource)
+    ? window.__makeDemoEventSource()
+    : new EventSource('api/events');
 
-evtSource.addEventListener('newthread', e => {
-  if (state === 'THREADLIST' && currentBase) {
-    const d = JSON.parse(e.data);
-    if (d.baseId === currentBase.id) renderBaseThreads(currentThreadList.page);
-  }
-});
+  evtSource.addEventListener('online', e => {
+    onlineCallers = JSON.parse(e.data);
+    if (state === 'ONLINE') renderOnline();
+    if (state === 'MENU') renderMenu(); // Refresh online count in menu
+  });
 
-evtSource.addEventListener('newpost', () => {
-  if (state === 'THREAD' && currentThread) renderThread();
-});
+  evtSource.addEventListener('newthread', e => {
+    if (state === 'THREADLIST' && currentBase) {
+      const d = JSON.parse(e.data);
+      if (d.baseId === currentBase.id) renderBaseThreads(currentThreadList.page);
+    }
+  });
+
+  evtSource.addEventListener('newpost', () => {
+    if (state === 'THREAD' && currentThread) renderThread();
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Screen renderers
@@ -394,7 +401,7 @@ function renderWelcome() {
   html += line();
   html += line(C.bWhite + 'What is your handle?' + C.reset + '  ' + C.bBlack + '(3-16 chars · A-Z a-z 0-9 _)' + C.reset);
   html += line();
-  html += line(C.bYellow + '> ' + C.reset + escHtml(inputBuffer));
+  html += line(C.bYellow + '> ' + C.reset + String(inputBuffer));
   render(html);
 }
 
@@ -405,7 +412,7 @@ function renderMenu() {
   html += logo();
   html += hline();
   html += line(
-    C.bGreen + '  Welcome, ' + C.bWhite + escHtml(handle) + C.bGreen +
+    C.bGreen + '  Welcome, ' + C.bWhite + String(handle) + C.bGreen +
     '!  Callers online: ' + C.bWhite + onlineCallers.length + C.reset
   );
   html += hline();
@@ -442,8 +449,8 @@ function renderBases() {
   html += line();
   bases.forEach((b, i) => {
     html += line(
-      `  ${C.bCyan}[${i + 1}]${C.reset}  ${C.bWhite}${escHtml(b.name)}${C.reset}` +
-      `  ${C.bBlack}— ${escHtml(b.description)}${C.reset}`
+      `  ${C.bCyan}[${i + 1}]${C.reset}  ${C.bWhite}${String(b.name)}${C.reset}` +
+      `  ${C.bBlack}— ${String(b.description)}${C.reset}`
     );
   });
   html += line();
@@ -464,7 +471,7 @@ async function renderBaseThreads(page = 1) {
   html += hline();
   html += line(
     center(
-      C.bYellow + 'BASE: ' + C.bWhite + escHtml(currentBase.name) + C.reset +
+      C.bYellow + 'BASE: ' + C.bWhite + String(currentBase.name) + C.reset +
       C.bBlack  + `  (Page ${data.page} of ${data.pages})` + C.reset
     )
   );
@@ -484,8 +491,8 @@ async function renderBaseThreads(page = 1) {
     html += hline('·');
     data.threads.forEach((t, i) => {
       const num    = String((page - 1) * 15 + i + 1).padStart(3);
-      const subj   = escHtml(t.subject).slice(0, 46).padEnd(46);
-      const from   = escHtml(t.posts[0].author).slice(0, 12).padEnd(12);
+      const subj   = String(t.subject).slice(0, 46).padEnd(46);
+      const from   = String(t.posts[0].author).slice(0, 12).padEnd(12);
       const date   = new Date(t.posts[0].ts).toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'2-digit' });
       const rep    = String(Math.max(0, t.posts.length - 1)).padStart(3);
       html += line(
@@ -513,7 +520,7 @@ async function renderThread() {
   let html = '';
   html += logo();
   html += hline();
-  html += line(C.bYellow + ' THREAD: ' + C.bWhite + escHtml(data.subject) + C.reset);
+  html += line(C.bYellow + ' THREAD: ' + C.bWhite + String(data.subject) + C.reset);
   html += hline();
 
   const visible = data.posts.filter(p => !p.held);
@@ -526,13 +533,12 @@ async function renderThread() {
       html += line();
       html += line(
         `${C.bCyan} Post #${i + 1}${C.reset}` +
-        `  ${C.bGreen}From: ${escHtml(p.author)}${C.reset}` +
+        `  ${C.bGreen}From: ${String(p.author)}${C.reset}` +
         `  ${C.bBlack}${date}${C.reset}`
       );
       html += hline('·');
-      // Word-wrap body at 78 chars
-      const body = escHtml(p.body);
-      const words = body.split(/( +|\n)/);
+      // Word-wrap body at 78 chars - body is raw text, will be escaped by ansiToHtml
+      const words = p.body.split(/( +|\n)/);
       let col = 0;
       let row = ' ';
       for (const w of words) {
@@ -575,20 +581,20 @@ function _drawCompose() {
 
   if (composeTarget === 'thread') {
     if (composeStep === 0) {
-      html += line(C.bWhite + ' Subject: ' + C.reset + escHtml(inputBuffer));
+      html += line(C.bWhite + ' Subject: ' + C.reset + String(inputBuffer));
       html += line();
       html += line(C.bBlack + ' [Enter] next · [Esc] cancel' + C.reset);
     } else {
-      html += line(C.bWhite + ' Subject: ' + C.reset + escHtml(composeDraft.subject));
+      html += line(C.bWhite + ' Subject: ' + C.reset + String(composeDraft.subject));
       html += line();
-      html += line(C.bWhite + '    Body: ' + C.reset + escHtml(inputBuffer));
+      html += line(C.bWhite + '    Body: ' + C.reset + String(inputBuffer));
       html += line();
       html += line(C.bBlack + ' [Enter] post · [Esc] cancel' + C.reset);
     }
   } else {
-    html += line(C.bWhite + ' Replying to: ' + C.reset + escHtml(currentThread.subject));
+    html += line(C.bWhite + ' Replying to: ' + C.reset + String(currentThread.subject));
     html += line();
-    html += line(C.bWhite + '      Reply: ' + C.reset + escHtml(inputBuffer));
+    html += line(C.bWhite + '      Reply: ' + C.reset + String(inputBuffer));
     html += line();
     html += line(C.bBlack + ' [Enter] post · [Esc] cancel' + C.reset);
   }
@@ -610,16 +616,16 @@ function renderSysop() {
   const show = sysopHistory.slice(-10);
   show.forEach(({ who, text }) => {
     const color = who === 'sysop' ? C.bGreen : C.bCyan;
-    const name  = who === 'sysop' ? 'SysOp' : escHtml(handle);
+    const name  = who === 'sysop' ? 'SysOp' : String(handle);
     // Word-wrap long replies to fit in 76 columns
     const wrapped = wordWrap(text, 76);
     wrapped.split('\n').forEach(l => {
-      html += line(`${color}[${name}]${C.reset} ${escHtml(l)}`);
+      html += line(`${color}[${name}]${C.reset} ${String(l)}`);
     });
   });
 
   html += line();
-  html += line(C.bYellow + '> ' + C.reset + escHtml(inputBuffer));
+  html += line(C.bYellow + '> ' + C.reset + String(inputBuffer));
   render(html);
 }
 
@@ -641,7 +647,7 @@ function renderOnline() {
     onlineCallers.forEach(c => {
       const when = new Date(c.lastSeen).toLocaleTimeString();
       html += line(
-        `  ${C.bGreen}●${C.reset} ${C.bWhite}${escHtml(c.handle).padEnd(16)}${C.reset}` +
+        `  ${C.bGreen}●${C.reset} ${C.bWhite}${String(c.handle).padEnd(16)}${C.reset}` +
         `  ${C.bBlack}${when}${C.reset}`
       );
     });
@@ -690,7 +696,7 @@ async function renderBye() {
   let html = ansHtml + '\n';
   html += line();
   html += line(center(C.bGreen + 'Thanks for calling NightOwl BBS!' + C.reset));
-  html += line(center(C.bBlack + 'So long, ' + escHtml(handle) + '. Come back soon!' + C.reset));
+  html += line(center(C.bBlack + 'So long, ' + String(handle) + '. Come back soon!' + C.reset));
   html += line();
   html += line(center(C.bRed + '\u2593\u2592\u2591  N O   C A R R I E R  \u2591\u2592\u2593' + C.reset));
   html += line();
@@ -741,9 +747,9 @@ terminal.addEventListener('keydown', async (e) => {
         let html = logo() + hline();
         // Strip any HTML tags that might come back from the server's ansiToHtml
         const errText = result.error.replace(/<[^>]+>/g, '');
-        html += line(C.bRed + ' Error: ' + C.reset + escHtml(errText));
+        html += line(C.bRed + ' Error: ' + C.reset + String(errText));
         html += line();
-        html += line(C.bWhite + 'Handle: ' + C.reset + escHtml(inputBuffer));
+        html += line(C.bWhite + 'Handle: ' + C.reset + String(inputBuffer));
         html += line();
         html += line(C.bBlack + ' Try again (3-16 chars, A-Z a-z 0-9 _)' + C.reset);
         render(html);
@@ -942,5 +948,6 @@ terminal.addEventListener('keydown', async (e) => {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 (async () => {
   await detectBackend();
+  connectEvents();
   renderConnect();
 })();

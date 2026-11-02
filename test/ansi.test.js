@@ -154,4 +154,36 @@ describe('ansiToHtml', () => {
       }
     ));
   });
+
+  test('property: apostrophes are escaped exactly once, not &amp;#39;', () => {
+    fc.assert(fc.property(
+      fc.string().filter(s => s.includes("'")),
+      (s) => {
+        const html = ansiToHtml(s);
+        // Should contain &#39; (escaped apostrophe)
+        assert.ok(html.includes('&#39;'), 
+          `Expected &#39; in output for input with apostrophe: ${JSON.stringify(s)}`);
+        // Should NOT contain &amp;#39; (double-escaped)
+        assert.ok(!html.includes('&amp;#39;'),
+          `Found double-escaped apostrophe &amp;#39; in output for: ${JSON.stringify(s)}`);
+      }
+    ));
+  });
+
+  test('apostrophes and ampersands are escaped exactly once', () => {
+    // Test: "You're" should become "You&#39;re" not "You&amp;#39;re"
+    const result = ansiToHtml("You're");
+    assert.equal(result, "You&#39;re");
+    assert.ok(!result.includes('&amp;'));
+  });
+
+  test('ampersands in apostrophe escapes are not double-escaped', () => {
+    // This tests the specific case: if we have an apostrophe that gets escaped to &#39;,
+    // the & should not be escaped again to &amp;
+    const input = "cat's";
+    const result = ansiToHtml(input);
+    assert.equal(result, "cat&#39;s");
+    assert.ok(!result.includes('&amp;'));
+    assert.ok(!result.includes('&amp;#39;'));
+  });
 });

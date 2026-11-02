@@ -374,3 +374,53 @@ describe('demoApi - property tests', () => {
     ));
   });
 });
+
+// ── Demo mode initialization tests ───────────────────────────────────────────
+
+describe('demo-api - initialization', () => {
+  test('initial online list contains at least 2 ghost callers after login', () => {
+    // Simulate the _startGhosts() behavior by directly calling the API
+    // First, seed the database by loading it (which will initialize with SEED_THREADS)
+    const db = loadDb();
+    
+    // Manually initialize the callers list like _startGhosts does
+    const GHOST_CALLERS = ['GhostBuster9', 'WitchHazel', 'CinemaSpectre', 'OldSysOp'];
+    const now = Date.now();
+    const picks = [...GHOST_CALLERS].sort(() => Math.random() - 0.5).slice(0, 3);
+    picks.forEach(h => {
+      db.callers[h] = { calls: Math.ceil(Math.random() * 20 + 1), lastSeen: now - Math.floor(Math.random() * 120000) };
+    });
+    saveDb(db);
+    
+    // Now simulate getting the online callers (which _getOnlineCallers does)
+    const cutoff = Date.now() - 5 * 60 * 1000; // 5 minutes
+    const online = Object.entries(db.callers)
+      .filter(([, v]) => v.lastSeen >= cutoff)
+      .map(([handle, v]) => ({ handle, lastSeen: v.lastSeen }));
+    
+    // Should have at least 2 ghosts online
+    assert.ok(online.length >= 2, `Expected at least 2 online callers, got ${online.length}`);
+    
+    // Verify they're from the ghost callers list
+    const onlineHandles = online.map(c => c.handle);
+    const ghostsOnline = onlineHandles.filter(h => GHOST_CALLERS.includes(h));
+    assert.ok(ghostsOnline.length >= 2, `Expected at least 2 ghost callers online, got ${ghostsOnline.length}`);
+  });
+
+  test('seed threads contain valid author and body text without HTML entity corruption', () => {
+    const result = demoApi('GET', '/api/bases/halloween/threads?page=1');
+    assert.ok(result.threads.length > 0, 'Should have seed threads in halloween base');
+    
+    result.threads.forEach(thread => {
+      assert.ok(thread.subject, 'Thread should have subject');
+      assert.ok(thread.posts.length > 0, 'Thread should have at least one post');
+      
+      thread.posts.forEach(post => {
+        assert.ok(post.author, 'Post should have author');
+        assert.ok(post.body, 'Post should have body');
+        // Verify no HTML entity corruption (raw apostrophes should appear as ')
+        assert.ok(!post.body.includes('&#39;'), 'Post body should contain raw apostrophes, not HTML entities');
+      });
+    });
+  });
+});

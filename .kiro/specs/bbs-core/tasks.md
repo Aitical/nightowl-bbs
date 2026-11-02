@@ -11,3 +11,4 @@
 - [x] 10. Static demo mode for GitHub Pages (R9)
 - [x] 11. Fix demo-api route normalization + regression test (R9)
 - [x] 12. Demo-mode QA fixes (R3, R5, R6, R8, R9)
+- [x] 13. Fix double-escaping and demo SSE wiring (R3, R5, R9)
