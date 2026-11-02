@@ -29,3 +29,7 @@ THE SYSTEM SHALL convert ANSI SGR sequences (colors 30–37, 90–97, bold, rese
 
 ## R8 Goodbye
 WHEN a caller presses G THE SYSTEM SHALL show "NO CARRIER" and return to the connect screen.
+
+## R9 Static demo mode (GitHub Pages)
+WHEN the API is unreachable (e.g. the app is served as static files from GitHub Pages under a sub-path such as `/nightowl-bbs/`) THE SYSTEM SHALL run fully client-side using `public/demo-api.js`, which implements the identical API surface (login, bases, threads with paging, post, reply, sysop chat/summary/moderation fallback, simulated who's online with ghost callers) on top of `localStorage`, seeded with spooky sample threads.
+All asset and `.ans` screen fetches MUST use relative paths so the app works correctly under any sub-path.

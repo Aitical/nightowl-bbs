@@ -239,6 +239,10 @@ function logo() {
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function api(method, path, body) {
+  // Demo mode: route through localStorage-backed demo-api.js instead of fetch
+  if (window.__demoMode && window.__demoApi) {
+    return window.__demoApi(method, path, body ?? undefined);
+  }
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body !== undefined) opts.body = JSON.stringify(body);
   try {
@@ -250,7 +254,10 @@ async function api(method, path, body) {
 }
 
 // ── SSE — real-time updates ───────────────────────────────────────────────────
-const evtSource = new EventSource('/api/events');
+// In demo mode use the localStorage-backed shim; otherwise connect to the server.
+const evtSource = (window.__demoMode && window.__makeDemoEventSource)
+  ? window.__makeDemoEventSource()
+  : new EventSource('/api/events');
 
 evtSource.addEventListener('online', e => {
   onlineCallers = JSON.parse(e.data);
@@ -278,7 +285,7 @@ async function renderConnect() {
   inputBuffer = '';
 
   // Show the .ans connect art as backdrop, then animate modem lines on top
-  const ansHtml = await loadAns('/screens/connect.ans');
+  const ansHtml = await loadAns('./screens/connect.ans');
 
   const frameLines = [
     { text: '',                                              delay:   0 },
@@ -613,7 +620,7 @@ function renderBulletins() {
 // ── GOODBYE / NO CARRIER ─────────────────────────────────────────────────────
 async function renderBye() {
   state = 'BYE';
-  const ansHtml = await loadAns('/screens/goodbye.ans');
+  const ansHtml = await loadAns('./screens/goodbye.ans');
 
   let html = ansHtml + '\n';
   html += line();
