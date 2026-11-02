@@ -312,12 +312,34 @@ function apiSummary(threadId) {
   return { summary };
 }
 
+// ── Path normalization ───────────────────────────────────────────────────────
+// Normalize paths like 'api/x', '/api/x', './api/x', 'http://example.com/api/x'
+// to canonical form '/api/x'.
+
+function normalizePath(path) {
+  // First try to find '/api/' substring anywhere in the path
+  const idx = path.indexOf('/api/');
+  if (idx !== -1) {
+    return path.substring(idx);
+  }
+  // If no '/api/', look for 'api/' at the start (possibly with ./ or base prefix)
+  const match = path.match(/(?:^|.*\/)(?:\.\/)?api\//);
+  if (match) {
+    // Extract 'api/...' part and prepend /
+    const start = path.indexOf('api/');
+    if (start !== -1) {
+      return '/' + path.substring(start);
+    }
+  }
+  // Fallback: return path as-is if it doesn't match the pattern
+  return path;
+}
+
 // ── Route dispatcher ──────────────────────────────────────────────────────────
 // Called by the patched api() in terminal.js instead of fetch().
 
 function demoApi(method, path, body) {
-  // Strip any leading base path (e.g. /nightowl-bbs/api/login → /api/login)
-  const p = path.replace(/^.*?(\/api\/)/, '/api/');
+  const p = normalizePath(path);
 
   // POST /api/login
   if (method === 'POST' && p === '/api/login') return apiLogin(body);
@@ -351,7 +373,13 @@ function demoApi(method, path, body) {
 // ── Exports on window ─────────────────────────────────────────────────────────
 // terminal.js probes the server on boot; if unreachable it sets
 // window.__demoMode = true and calls window.__demoActivate() to seed ghosts.
+// Only set window properties if window is defined (browser context).
+if (typeof window !== 'undefined') {
+  window.__demoApi = demoApi;
+  window.__makeDemoEventSource = makeDemoEventSource;
+  window.__demoActivate = _startGhosts;
+}
 
-window.__demoApi = demoApi;
-window.__makeDemoEventSource = makeDemoEventSource;
-window.__demoActivate = _startGhosts;
+// ── ES Module exports ──────────────────────────────────────────────────────────
+// When loaded in Node.js (via test), export the dispatcher and normalize function.
+export { demoApi, normalizePath, loadDb, saveDb };
