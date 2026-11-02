@@ -101,6 +101,16 @@ const C = {
 // Handles: reset(0), bold(1), blink(5), fg 30-37/90-97, bg 40-47/100-107.
 // Ignores cursor movement (2J, H, etc.) — those are only in .ans files where
 // we strip them at fetch time.
+// ── HTML escaping (applied once, inside ansiToHtml only) ─────────────────────
+function escHtml(t) {
+  return String(t)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function ansiToHtml(input) {
   const ANSI_RE = /\x1b\[(\d*(?:;\d*)*)([A-Za-z])/g;
   let sgr = { fg: null, bg: null, bold: false, blink: false };
@@ -833,7 +843,7 @@ terminal.addEventListener('keydown', async (e) => {
       html += line();
       const summary = (data.summary || 'No summary available.').trim();
       summary.split('\n').forEach(l => {
-        html += line(C.bGreen + '  ' + escHtml(l) + C.reset);
+        html += line(C.bGreen + '  ' + String(l) + C.reset);
       });
       html += line();
       html += hline();
