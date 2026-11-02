@@ -8,4 +8,4 @@
 - [x] 7. sysop.js chat/moderate/summarize with fallback (R6)
 - [x] 8. Connect handshake + NO CARRIER screens, ANSI art (R1, R8)
 - [x] 9. README, MIT LICENSE, deploy notes
-- [ ] 10. Static demo mode for GitHub Pages (R9)
+- [x] 10. Static demo mode for GitHub Pages (R9)

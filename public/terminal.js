@@ -247,17 +247,42 @@ async function api(method, path, body) {
   if (body !== undefined) opts.body = JSON.stringify(body);
   try {
     const res = await fetch(path, opts);
-    return res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return json;
   } catch (err) {
+    // If backend is unreachable and demo-api is available, auto-enable demo mode
+    if (window.__demoApi && !window.__demoMode) {
+      window.__demoMode = true;
+      if (window.__demoActivate) window.__demoActivate();
+      // Retry the call in demo mode
+      return window.__demoApi(method, path, body ?? undefined);
+    }
     return { error: String(err) };
   }
+}
+
+// ── Auto-detect backend at boot ────────────────────────────────────────────────
+// Try to fetch a simple API endpoint; if it fails, enable demo mode.
+async function detectBackend() {
+  if (window.__demoMode || !window.__demoApi) return; // Already in demo mode or no demo available
+  try {
+    const res = await fetch('api/bases', { method: 'GET' });
+    if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+      // Backend is reachable — normal mode
+      return;
+    }
+  } catch { /* ignore */ }
+  // Backend unreachable — enable demo mode
+  window.__demoMode = true;
+  if (window.__demoActivate) window.__demoActivate();
 }
 
 // ── SSE — real-time updates ───────────────────────────────────────────────────
 // In demo mode use the localStorage-backed shim; otherwise connect to the server.
 const evtSource = (window.__demoMode && window.__makeDemoEventSource)
   ? window.__makeDemoEventSource()
-  : new EventSource('/api/events');
+  : new EventSource('api/events');
 
 evtSource.addEventListener('online', e => {
   onlineCallers = JSON.parse(e.data);
@@ -392,7 +417,7 @@ function renderBases() {
 // ── THREADLIST ── thread index for a base ─────────────────────────────────────
 async function renderBaseThreads(page = 1) {
   state = 'THREADLIST';
-  const data = await api('GET', `/api/bases/${currentBase.id}/threads?page=${page}`);
+  const data = await api('GET', `api/bases/${currentBase.id}/threads?page=${page}`);
   if (data.error) { renderMenu(); return; }
   currentThreadList = data;
 
@@ -443,7 +468,7 @@ async function renderBaseThreads(page = 1) {
 // ── THREAD ── read a thread ───────────────────────────────────────────────────
 async function renderThread() {
   state = 'THREAD';
-  const data = await api('GET', `/api/threads/${currentThread.id}`);
+  const data = await api('GET', `api/threads/${currentThread.id}`);
   if (data.error) { await renderBaseThreads(currentThreadList.page); return; }
   currentThread = data;
 
@@ -671,7 +696,7 @@ terminal.addEventListener('keydown', async (e) => {
       inputBuffer = '';
       if (!h) { renderWelcome(); return; }
 
-      const result = await api('POST', '/api/login', { handle: h });
+      const result = await api('POST', 'api/login', { handle: h });
       if (result.error) {
         let html = logo() + hline();
         // Strip any HTML tags that might come back from the server's ansiToHtml
@@ -684,7 +709,7 @@ terminal.addEventListener('keydown', async (e) => {
         render(html);
       } else {
         handle = h;
-        const fetchedBases = await api('GET', '/api/bases');
+        const fetchedBases = await api('GET', 'api/bases');
         bases = Array.isArray(fetchedBases) ? fetchedBases : [];
         renderMenu();
       }
@@ -755,7 +780,7 @@ terminal.addEventListener('keydown', async (e) => {
       render(html);
       state = 'SUMMARY';
 
-      const data = await api('GET', `/api/threads/${currentThread.id}/summary`);
+      const data = await api('GET', `api/threads/${currentThread.id}/summary`);
       html = logo() + hline();
       html += line(center(C.bYellow + 'THREAD SUMMARY — by SysOp' + C.reset));
       html += hline();
@@ -806,7 +831,7 @@ terminal.addEventListener('keydown', async (e) => {
       inputBuffer = '';
 
       if (composeTarget === 'thread') {
-        const t = await api('POST', `/api/bases/${currentBase.id}/threads`, {
+        const t = await api('POST', `api/bases/${currentBase.id}/threads`, {
           subject: composeDraft.subject, author: handle, body
         });
         if (!t.error) {
@@ -817,7 +842,7 @@ terminal.addEventListener('keydown', async (e) => {
           _drawCompose();
         }
       } else {
-        const result = await api('POST', `/api/threads/${currentThread.id}/replies`, {
+        const result = await api('POST', `api/threads/${currentThread.id}/replies`, {
           author: handle, body
         });
         if (result.error) {
@@ -853,7 +878,7 @@ terminal.addEventListener('keydown', async (e) => {
       if (!msg) { renderSysop(); return; }
       sysopHistory.push({ who: 'caller', text: msg });
       renderSysop();
-      const data = await api('POST', '/api/sysop/chat', { message: msg, handle });
+      const data = await api('POST', 'api/sysop/chat', { message: msg, handle });
       sysopHistory.push({ who: 'sysop', text: data.reply || '...' });
       renderSysop();
       return;
@@ -875,4 +900,7 @@ terminal.addEventListener('keydown', async (e) => {
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-renderConnect();
+(async () => {
+  await detectBackend();
+  renderConnect();
+})();
