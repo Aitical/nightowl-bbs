@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NightOwl BBS</title>
+  <style>
+    :root {
+      --phosphor-color: #ffb000;
+      --phosphor-glow: #ff8c00;
+      --bg-color: #0a0500;
+      --scanline-opacity: 0.08;
+    }
+    :root.green-phosphor {
+      --phosphor-color: #33ff33;
+      --phosphor-glow: #00cc00;
+      --bg-color: #000a00;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+    }
+    #crt-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    /* CRT scanlines overlay */
+    #crt-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 1px,
+        rgba(0,0,0,var(--scanline-opacity)) 1px,
+        rgba(0,0,0,var(--scanline-opacity)) 2px
+      );
+      pointer-events: none;
+      z-index: 10;
+    }
+    /* CRT phosphor glow */
+    #crt-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 4px;
+      box-shadow:
+        0 0 40px 8px var(--phosphor-glow),
+        inset 0 0 40px rgba(0,0,0,0.5);
+      pointer-events: none;
+      z-index: 11;
+    }
+    #terminal {
+      background: var(--bg-color);
+      color: var(--phosphor-color);
+      /* 80 columns × character width + padding */
+      width: calc(80ch + 2rem);
+      /* 25 rows × line-height + padding */
+      height: calc(25 * 1.4em + 2rem);
+      padding: 1rem;
+      font-size: 16px;
+      line-height: 1.4;
+      overflow: hidden;
+      outline: none;
+      position: relative;
+      border-radius: 4px;
+      text-shadow: 0 0 6px var(--phosphor-glow);
+      letter-spacing: 0.02em;
+      cursor: default;
+      user-select: none;
+    }
+    #screen {
+      white-space: pre;
+      font-family: inherit;
+      /* Ensure text doesn't bleed outside the 80×25 grid */
+      word-break: break-all;
+    }
+    /* ANSI color classes */
+    .ansi-bright { font-weight: bold; }
+    .blink {
+      animation: blink-anim 1s step-end infinite;
+    }
+    @keyframes blink-anim {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+    /* Block cursor */
+    #cursor {
+      display: inline-block;
+      width: 0.6em;
+      height: 1em;
+      background: var(--phosphor-color);
+      box-shadow: 0 0 6px var(--phosphor-glow);
+      animation: blink-anim 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+    /* Phosphor toggle button (outside the CRT frame) */
+    #phosphor-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: transparent;
+      border: 1px solid #333;
+      color: #555;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: monospace;
+      z-index: 100;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    #phosphor-toggle:hover  { color: #888; border-color: #888; }
+    #phosphor-toggle:focus  { outline: none; color: #aaa; border-color: #aaa; }
+    /* Each coloured span gets a subtle per-colour glow */
+    span { text-shadow: 0 0 4px currentColor; }
+  </style>
+</head>
+<body>
+  <button id="phosphor-toggle" title="Toggle phosphor colour (Amber / Green)">⬤ AMBER/GREEN</button>
+
+  <div id="crt-wrap">
+    <div id="terminal"
+         tabindex="0"
+         role="application"
+         aria-label="NightOwl BBS Terminal — keyboard navigation required">
+      <div id="screen"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/terminal.js"></script>
+
+  <script>
+    // Phosphor colour toggle
+    document.getElementById('phosphor-toggle').addEventListener('click', () => {
+      document.documentElement.classList.toggle('green-phosphor');
+    });
+    // Auto-focus the terminal so keystrokes are captured immediately
+    window.addEventListener('load', () => {
+      document.getElementById('terminal').focus();
+    });
+    // Re-focus if the user clicks anywhere on the page
+    document.addEventListener('click', (e) => {
+      if (e.target.id !== 'phosphor-toggle') {
+        document.getElementById('terminal').focus();
+      }
+    });
+  </script>
+</body>
+</html>
